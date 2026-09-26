@@ -12,6 +12,14 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+      - name: Apply reviewed WCDB export fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error 'https://raw.githubusercontent.com/AnonymousUser443/WeFlow-Community-Patch/main/patches/weflow-community-hotfix.patch' --output weflow-community-hotfix.patch
+          test "$(git hash-object weflow-community-hotfix.patch)" = '84656b2bd92e9313b5968e3a99663de9260b44e6'
+          git apply --check weflow-community-hotfix.patch
+          git apply weflow-community-hotfix.patch
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
@@ -27,13 +35,13 @@ jobs:
       - name: Package Windows x64 installer
         shell: bash
         run: |
-          npx electron-builder --win nsis --x64 --publish never '--config.artifactName=${productName}-${version}-x64-Setup.${ext}'
+          npx electron-builder --win nsis --x64 --publish never '--config.artifactName=${productName}-${version}-x64-Hotfix-Setup.${ext}'
       - name: Publish installer
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          files=(release/*-x64-Setup.exe)
+          files=(release/*-x64-Hotfix-Setup.exe)
           test -f "${files[0]}"
-          gh release create "cloud-build-${GITHUB_RUN_ID}" "${files[@]}" --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" --title "Windows x64 build ${GITHUB_RUN_ID}" --notes "Windows x64 installer built from commit ${GITHUB_SHA}." --prerelease
+          gh release create "cloud-build-${GITHUB_RUN_ID}" "${files[@]}" --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" --title "Windows x64 build ${GITHUB_RUN_ID}" --notes "Windows x64 installer built from commit ${GITHUB_SHA} with the reviewed WCDB export fallback patch (Git blob 84656b2bd92e9313b5968e3a99663de9260b44e6)." --prerelease
