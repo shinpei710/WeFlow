@@ -1,0 +1,39 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Type check and build
+        shell: bash
+        run: |
+          npx tsc
+          npx vite build
+      - name: Package Windows x64 installer
+        shell: bash
+        run: |
+          npx electron-builder --win nsis --x64 --publish never '--config.artifactName=${productName}-${version}-x64-Setup.${ext}'
+      - name: Publish installer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          files=(release/*-x64-Setup.exe)
+          test -f "${files[0]}"
+          gh release create "cloud-build-${GITHUB_RUN_ID}" "${files[@]}" --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" --title "Windows x64 build ${GITHUB_RUN_ID}" --notes "Windows x64 installer built from commit ${GITHUB_SHA}." --prerelease
